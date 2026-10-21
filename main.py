@@ -109,27 +109,24 @@ def main():
                 # --- FLIGHT MODE ---
                 grid = [[" " for _ in range(width)] for _ in range(height)]
 
-                # 1. Prvo iscrtaj svu prašinu u pozadinu
+                # Make dust
                 for dust in dust_particles:
                     dust.update()
                     if 0 <= dust.y < height and 0 <= dust.x < width:
                         grid[dust.y][dust.x] = f"{dust.color}{dust.char}"
 
-                # 2. Zatim iscrtaj trup broda preko prašine
-                for room in ship.rooms:
-                    off_r, off_c = room["offset"]
-                    hull = room['hull']
+                # Make ship over the dust
 
-                    for r_idx, row in enumerate(hull):
-                        for c_idx, char in enumerate(row):
-                            if char != " ":
-                                screen_y = ship.world_y + off_r + r_idx
-                                screen_x = ship.world_x + off_c + c_idx
+                for r_idx, row in enumerate(ship.flight_hull):
+                    for c_idx, char in enumerate(row):
+                        if char != " ":
+                            screen_y = ship.world_y + ship.min_r + r_idx
+                            screen_x = ship.world_x + ship.min_c + c_idx
 
-                                if 0 <= screen_y < height and 0 <= screen_x < width:
-                                    grid[screen_y][screen_x] = f"\033[36m{char}\033[0m"
+                            if 0 <= screen_y < height and 0 <= screen_x < width:
+                                grid[screen_y][screen_x] = f"\033[36m{char}\033[0m"
 
-                # Očisti ekran i postavi kursor na vrh prije ispisivanja flight moda
+                # Screen output
                 sys.stdout.write("\033[H\033[J")
                 sys.stdout.write(f"=== A-CMD-GAME [FLIGHT MODE] [FRAME: {frame}] ====================\n")
                 for row in grid:
@@ -159,7 +156,7 @@ def main():
                 time.sleep(0.02)
             
     except KeyboardInterrupt:
-        print("\nSimulacija zaustavljena.")
+        print("\nSimulation stoped")
 
 if __name__ == "__main__":
     main()
