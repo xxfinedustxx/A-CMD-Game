@@ -120,8 +120,8 @@ def main():
                 for r_idx, row in enumerate(ship.flight_hull):
                     for c_idx, char in enumerate(row):
                         if char != " ":
-                            screen_y = ship.world_y + ship.min_r + r_idx
-                            screen_x = ship.world_x + ship.min_c + c_idx
+                            screen_y = ship.world_y + r_idx
+                            screen_x = ship.world_x + c_idx
 
                             if 0 <= screen_y < height and 0 <= screen_x < width:
                                 grid[screen_y][screen_x] = f"\033[36m{char}\033[0m"

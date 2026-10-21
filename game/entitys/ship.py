@@ -34,8 +34,8 @@ class Ship:
             self.flight_hull = [[" "]]
             return
 
-        min_r = min(r["offset"][0] for r in self.rooms)
-        min_c = min(r["offset"][1] for r in self.rooms)
+        self.min_r = min(r["offset"][0] for r in self.rooms)
+        self.min_c = min(r["offset"][1] for r in self.rooms)
         
         
         max_r_int = max(r["offset"][0] + len(r["interior"]) for r in self.rooms)
@@ -44,12 +44,11 @@ class Ship:
         max_r_hull = max(r["offset"][0] + len(r["hull"]) for r in self.rooms)
         max_c_hull = max(r["offset"][1] + max(len(row) for row in r["hull"]) for r in self.rooms)
 
-        int_height = max_r_int - min_r
-        int_width = max_c_int - min_c
-
+        # Interior
+        int_height = max_r_int - self.min_r
+        int_width = max_c_int - self.min_c
         int_grid = [[" " for _ in range(int_width)] for _ in range(int_height)]
 
-        # Interior
         for room in self.rooms:
             off_r, off_c = room["offset"]
             r_offset = off_r - self.min_r
@@ -58,13 +57,12 @@ class Ship:
             interior = room["interior"]
             for r_idx, row in enumerate(interior):
                 for c_idx, char in enumerate(row):
-                    if char != " ": # Ne prepisuj praznine bespotrebno
+                    if char != " ": 
                         int_grid[r_offset + r_idx][c_offset + c_idx] = char
 
         self.interior_grid = int_grid
 
         # Hull
-
         hull_height = max_r_hull - self.min_r
         hull_width = max_c_hull - self.min_c
         hull_grid = [[" " for _ in range(hull_width)] for _ in range(hull_height)]
@@ -81,7 +79,7 @@ class Ship:
 
 
     def add_room(self, room_type, offset_r, offset_c):
-        
+
         if room_type == "ENGINE_ROOM":
             interior = copy.deepcopy(ENGINE_ROOM)
             hull = ENGINE_ROOM_HULL
