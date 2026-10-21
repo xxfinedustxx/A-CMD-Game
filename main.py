@@ -42,9 +42,13 @@ def main():
 
     ship = Ship(x=(width//2), y=(height//2))
     
-    ship.add_room("ENGINE_ROOM",interior_offset=(8, 0), flight_offset=(0, -7))
+    ship.add_room("ENGINE_ROOM",interior_offset=(8, 8))
+    ship.add_room("SQUARE_ROOM",interior_offset =(0,0))
+    ship.add_room("SQUARE_ROOM",interior_offset=(0,8))
+    ship.add_room("SQUARE_ROOM",interior_offset=(0,16))
 
-    player = Player(room_r=4, room_c=4)
+    spawn_r, spawn_c = ship.get_console_spawn_cords()
+    player = Player(room_r=spawn_r, room_c=spawn_c)
 
     try:
         last_action_time = 0
@@ -74,7 +78,7 @@ def main():
                 
                 screen_buffer.append(f"=== A CMD GAME [Interior mode] [FRAME: {frame}] ===")
 
-                interior_screen = render_interior_with_camera(ship, player, screen_width=25, screen_height=11)
+                interior_screen = render_interior_with_camera(ship, player, screen_width=50, screen_height=30)
                 screen_buffer.append(interior_screen)
 
                 screen_buffer.append("================================")
