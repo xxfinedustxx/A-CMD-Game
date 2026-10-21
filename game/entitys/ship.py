@@ -14,7 +14,8 @@ class Ship:
                 "type": "SQUARE_ROOM",
                 "interior": copy.deepcopy(SQUARE_ROOM),
                 "hull": SQUARE_ROOM_HULL,
-                "offset": (0, 0)
+                "interior_offset": (0, 0),
+                "flight_offset": (0,0)
             }
         ]
 
@@ -22,55 +23,59 @@ class Ship:
         
         self.interior_grid = []
         self.flight_hull = []
+
         self.min_r = 0
         self.min_c = 0
 
-        self._rebuild_interior_grid()
+        self._rebuild_grids()
 
-    def _rebuild_interior_grid(self):
+    def _rebuild_grids(self):
         
         if not self.rooms:
             self.interior_grid = [[" "]]
             self.flight_hull = [[" "]]
             return
 
-        self.min_r = min(r["offset"][0] for r in self.rooms)
-        self.min_c = min(r["offset"][1] for r in self.rooms)
+        # -- Interior grid builder --
+        self.int_min_r = min(r["interior_offset"][0] for r in self.rooms)
+        self.int_min_c = min(r["interior_offset"][1] for r in self.rooms)
         
         
-        max_r_int = max(r["offset"][0] + len(r["interior"]) for r in self.rooms)
-        max_c_int = max(r["offset"][1] + max(len(row) for row in r["interior"]) for r in self.rooms)
+        max_r_int = max(r["interior_offset"][0] + len(r["interior"]) for r in self.rooms)
+        max_c_int = max(r["interior_offset"][1] + max(len(row) for row in r["interior"]) for r in self.rooms)
 
-        max_r_hull = max(r["offset"][0] + len(r["hull"]) for r in self.rooms)
-        max_c_hull = max(r["offset"][1] + max(len(row) for row in r["hull"]) for r in self.rooms)
-
-        # Interior
-        int_height = max_r_int - self.min_r
-        int_width = max_c_int - self.min_c
+        
+        int_height = max_r_int - self.int_min_r
+        int_width = max_c_int - self.int_min_c
         int_grid = [[" " for _ in range(int_width)] for _ in range(int_height)]
 
         for room in self.rooms:
-            off_r, off_c = room["offset"]
-            r_offset = off_r - self.min_r
-            c_offset = off_c - self.min_c
+            off_r, off_c = room["interior_offset"]
+            r_offset = off_r - self.int_min_r
+            c_offset = off_c - self.int_min_c
 
-            interior = room["interior"]
-            for r_idx, row in enumerate(interior):
+            for r_idx, row in enumerate(room["interior"]):
                 for c_idx, char in enumerate(row):
                     if char != " ": 
                         int_grid[r_offset + r_idx][c_offset + c_idx] = char
 
         self.interior_grid = int_grid
 
-        # Hull
-        hull_height = max_r_hull - self.min_r
-        hull_width = max_c_hull - self.min_c
+        # -- Hull grid builder --
+        self.flight_min_r = min(r["flight_offset"][0] for r in self.rooms)
+        self.flight_min_c = min(r["flight_offset"][1] for r in self.rooms) 
+
+        max_r_hull = max(r["flight_offset"][0] + len(r["hull"]) for r in self.rooms)
+        max_c_hull = max(r["flight_offset"][1] + max(len(row) for row in r["hull"]) for r in self.rooms)
+
+        hull_height = max_r_hull - self.flight_min_r
+        hull_width = max_c_hull - self.flight_min_c
         hull_grid = [[" " for _ in range(hull_width)] for _ in range(hull_height)]
 
         for room in self.rooms:
-            off_r, off_c = room["offset"]
-            r_offset = off_r - self.min_r
-            c_offset = off_c - self.min_c
+            off_r, off_c = room["flight_offset"]
+            r_offset = off_r - self.flight_min_r
+            c_offset = off_c - self.flight_min_c
             for r_idx, row in enumerate(room["hull"]):
                 for c_idx, char in enumerate(row):
                     if char != " ":
@@ -78,7 +83,7 @@ class Ship:
         self.flight_hull = hull_grid 
 
 
-    def add_room(self, room_type, offset_r, offset_c):
+    def add_room(self, room_type, interior_offset, flight_offset):
 
         if room_type == "ENGINE_ROOM":
             interior = copy.deepcopy(ENGINE_ROOM)
@@ -91,10 +96,11 @@ class Ship:
             "type": room_type,
             "interior": interior,
             "hull": hull,
-            "offset": (offset_r, offset_c)
+            "interior_offset": interior_offset,
+            "flight_offset": flight_offset
         })
 
-        self._rebuild_interior_grid()
+        self._rebuild_grids()
 
     def move_ship(self, dx, dy):
 

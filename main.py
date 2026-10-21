@@ -42,7 +42,7 @@ def main():
 
     ship = Ship(x=(width//2), y=(height//2))
     
-    ship.add_room("ENGINE_ROOM",offset_r=8, offset_c=0)
+    ship.add_room("ENGINE_ROOM",interior_offset=(8, 0), flight_offset=(0, -7))
 
     player = Player(room_r=4, room_c=4)
 
