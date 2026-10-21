@@ -48,16 +48,16 @@ def main():
 
     try:
         last_action_time = 0
-        interior_cooldown = 0.1   # Sporiji/precizniji cooldown za unutrašnjost
-        flight_cooldown = 0.05    # Brzi cooldown za letenje u svemiru
+        interior_cooldown = 0.1  
+        flight_cooldown = 0.005    
         frame = 0
         
         while True:
-            # Čitanje tipke
+            
             key = get_key()
             current_time = time.time()
 
-            # Dinamički biramo cooldown ovisno o aktivnom modu
+            
             active_cooldown = flight_cooldown if player.in_flight_mode else interior_cooldown
 
             can_act = False
@@ -69,7 +69,7 @@ def main():
                 # --- INTERIOR MODE ---
                 screen_buffer = []
                 
-                # Očisti cijeli ekran i postavi kursor na vrh prije ispisivanja
+                
                 screen_buffer.append("\033[H\033[J")
                 
                 screen_buffer.append(f"=== A CMD GAME [Interior mode] [FRAME: {frame}] ===")
@@ -139,7 +139,7 @@ def main():
                 sys.stdout.write("Kontrole: W/A/S/D letenje | Q povratak u brod | CTRL+C izlaz\n")
                 sys.stdout.flush()
 
-                # Obrada tipki u letu (koristi flight_cooldown)
+                
                 if can_act:
                     if key == "w":
                         ship.move_ship(0, -1)  
