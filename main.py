@@ -52,7 +52,7 @@ def main():
 
     try:
         last_action_time = 0
-        interior_cooldown = 0.1  
+        interior_cooldown = 0.15  
         flight_cooldown = 0.005    
         frame = 0
         
@@ -78,7 +78,7 @@ def main():
                 
                 screen_buffer.append(f"=== A CMD GAME [Interior mode] [FRAME: {frame}] ===")
 
-                interior_screen = render_interior_with_camera(ship, player, screen_width=50, screen_height=30)
+                interior_screen = render_interior_with_camera(ship, player, screen_width=40, screen_height=20)
                 screen_buffer.append(interior_screen)
 
                 screen_buffer.append("================================")
