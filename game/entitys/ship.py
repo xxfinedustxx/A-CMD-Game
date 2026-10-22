@@ -10,6 +10,7 @@ class Ship:
     def __init__(self, x = 0, y = 0):
         self.world_x = x
         self.world_y = y
+        self.is_flying = False
 
         self.rooms = []
         self.nav_console_pos = (3, 4)
@@ -20,26 +21,47 @@ class Ship:
         self.add_room("SQUARE_ROOM", interior_offset=(0, 0))
 
     def add_room(self, room_type, interior_offset, auto_generated = False):
+
+        if self.is_flying:
+            print("Can't build while moveing!")
+            return False
+
         if room_type == "ENGINE_ROOM":
             interior = copy.deepcopy(ENGINE_ROOM)
             hull = ENGINE_ROOM_HULL
+            base_hp = 150
+            base_weight = 25
+            thrust_power = 50
         elif room_type == "EMPTY":
             interior = copy.deepcopy(EMPTY_ROOM)
             hull = []
+            base_hp = 0
+            base_weight = 0
+            thrust_power = 0
         elif room_type == "ANGLED_ROOM_RIGHT_UP":
             interior = copy.deepcopy(ANGLED_ROOM_RIGHT_UP)
             hull = ANGLED_ROOM_RIGHT_UP_HULL
+            base_hp = 80
+            base_weight = 8
+            thrust_power = 0
         else:
             interior = copy.deepcopy(SQUARE_ROOM)
             hull = SQUARE_ROOM_HULL
+            base_hp = 100
+            base_weight = 10
+            thrust_power = 0
 
         self.rooms.append({
             "type": room_type,
             "interior": interior,
             "hull": hull,
             "interior_offset": interior_offset,
+            "base_hp": base_hp,
+            "weight": base_weight,
+            "thrust_power":thrust_power,
             "flight_offset": (0, 0),
             "auto_generated": auto_generated
+            
         })
 
         self._rebuild_grids()
@@ -222,21 +244,39 @@ class Ship:
 
             mirrored_r_idx = max_r_idx - r_idx
 
-            flight_r = c_idx * len(room["hull"])
-            flight_c = mirrored_r_idx * 7  
+            hull_h = len(room["hull"]) if room["hull"] else 3
+            hull_w = len(room["hull"][0]) if room["hull"] and room["hull"][0] else 5
+
+            flight_r = c_idx * hull_h
+            flight_c = mirrored_r_idx * hull_w  
 
             room["flight_offset"] = (flight_r, flight_c)
 
+        # Provjera vanjskih rubova za postavljanje mlaznica motora
+        min_fc = min(r["flight_offset"][1] for r in self.rooms) if self.rooms else 0
+        max_fc = max(r["flight_offset"][1] + (len(r["hull"][0]) if r["hull"] else 5) for r in self.rooms) if self.rooms else 0
+
+        extra_left = 0
+        extra_right = 0
+        for room in self.rooms:
+            if room["type"] == "ENGINE_ROOM":
+                r_fc = room["flight_offset"][1]
+                if r_fc == min_fc:
+                    extra_left = 1
+                elif r_fc + len(room["hull"][0]) == max_fc:
+                    extra_right = 1
+
         f_min_r = min(r["flight_offset"][0] for r in self.rooms)
-        f_min_c = min(r["flight_offset"][1] for r in self.rooms) 
+        f_min_c = min(r["flight_offset"][1] for r in self.rooms) - extra_left
 
         max_r_hull = max(r["flight_offset"][0] + len(r["hull"]) for r in self.rooms)
-        max_c_hull = max(r["flight_offset"][1] + max(len(row) for row in r["hull"]) for r in self.rooms)
+        max_c_hull = max(r["flight_offset"][1] + max(len(row) for row in r["hull"]) for r in self.rooms) + extra_right
 
         hull_height = max_r_hull - f_min_r
         hull_width = max_c_hull - f_min_c
         hull_grid = [[" " for _ in range(hull_width)] for _ in range(hull_height)]
 
+        # Ispis oklopa soba
         for room in self.rooms:
             off_r, off_c = room["flight_offset"]
             r_offset = off_r - f_min_r
@@ -245,12 +285,77 @@ class Ship:
                 for c_idx, char in enumerate(row):
                     if char != " ":
                         hull_grid[r_offset + r_idx][c_offset + c_idx] = char
-                        
+
+            # Automatsko dodavanje mlaznice na vanjski rub Engine Room-a
+            if room["type"] == "ENGINE_ROOM":
+                r_fc = room["flight_offset"][1]
+                nozzle = [
+                    ["\\"],
+                    ["▶"],
+                    ["/"]
+                ]
+                if r_fc == min_fc:
+                    # Mlaznica ide na lijevu stranu
+                    for nr_idx, nrow in enumerate(nozzle):
+                        for nc_idx, nchar in enumerate(nrow):
+                            hull_grid[r_offset + nr_idx][c_offset - 1 + nc_idx] = nchar
+                elif r_fc + len(room["hull"][0]) == max_fc:
+                    # Mlaznica ide na desnu stranu
+                    for nr_idx, nrow in enumerate(nozzle):
+                        for nc_idx, nchar in enumerate(nrow):
+                            hull_grid[r_offset + nr_idx][c_offset + len(room["hull"][0]) + nc_idx] = nchar
+
+# --- Post processing (connecting ship blocks / Hull Stitching) ---
+        for r in range(len(hull_grid)):
+            for c in range(len(hull_grid[0])):
+                char = hull_grid[r][c]
+                
+                up = hull_grid[r-1][c] if r > 0 else " "
+                down = hull_grid[r+1][c] if r < len(hull_grid) - 1 else " "
+                left = hull_grid[r][c-1] if c > 0 else " "
+                right = hull_grid[r][c+1] if c < len(hull_grid[0]) - 1 else " "
+
+                # 1. Horizontalni spoj gornjih kutova -> obavezno ┳ ┳
+                if char == "┓" and right == "┏":
+                    hull_grid[r][c] = "┳"
+                elif char == "┏" and (left == "┓" or left == "┳"):
+                    hull_grid[r][c] = "┳"
+
+                # 2. Horizontalni spoj donjih kutova -> obavezno ┻ ┻
+                elif char == "┛" and right == "┗":
+                    hull_grid[r][c] = "┻"
+                elif char == "┗" and (left == "┛" or left == "┻"):
+                    hull_grid[r][c] = "┻"
+
+                # 3. Okomiti spoj desnih kutova -> obavezno ┫ nad ┫
+                elif char == "┛" and down == "┓":
+                    hull_grid[r][c] = "┫"
+                elif char == "┓" and (up == "┛" or up == "┫" or up == "╋"):
+                    hull_grid[r][c] = "┫"
+
+                # 4. Okomiti spoj lijevih kutova -> obavezno ┣ nad ┣
+                elif char == "┗" and down == "┏":
+                    hull_grid[r][c] = "┣"
+                elif char == "┏" and (up == "┗" or up == "┣" or up == "╋"):
+                    hull_grid[r][c] = "┣"
+
+                # 5. Križanje (ako je spojeno sa svih 4 strana) -> ╋
+                if char in ["┏", "┓", "┗", "┛", "┳", "┻", "┣", "┫"] and up != " " and down != " " and left != " " and right != " ":
+                    hull_grid[r][c] = "╋"
+        
         self.flight_hull = hull_grid
 
-    def move_ship(self, dx, dy):
-        self.world_x += dx
-        self.world_y += dy
+    def move_ship(self, dx, dy, max_width, max_height):
+        new_x = self.world_x + dx
+        new_y = self.world_y + dy
+
+        hull_h = len(self.flight_hull) if self.flight_hull else 1
+        hull_w = len(self.flight_hull[0]) if self.flight_hull and self.flight_hull[0] else 1
+
+        if 0 <= new_x and new_x + hull_w <= max_width:
+            self.world_x = new_x
+        if 0 <= new_y and new_y + hull_h <= max_height:
+            self.world_y = new_y
 
     def get_console_spawn_cords(self):
         min_r = min(r["interior_offset"][0] for r in self.rooms) if self.rooms else 0
@@ -272,3 +377,9 @@ class Ship:
                 if target_tile not in ["=#=", "===", " ║ ", "[%]", "[#]"]:
                     return (nr, nc)
         return (console_r, console_c)
+
+    def get_ship_stats(self):
+        total_hp = sum(r.get("base_hp", 0) for r in self.rooms)
+        total_weight = sum(r.get("weight", 0) for r in self.rooms)
+        total_thrust = sum(r.get("thrust_power", 0) for r in self.rooms)
+        return total_hp, total_weight, total_thrust
