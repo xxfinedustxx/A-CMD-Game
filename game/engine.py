@@ -27,14 +27,19 @@ class GameEngine:
         self.move_cooldown = 0.08
         self.is_colliding = False
 
+        # Sustav oštećenja / cooldown za štetu
+        self.last_damage_time = 0
+        self.damage_cooldown = 1.0  # 1 sekunda imuniteta između udara
+        self.last_hit_flash = 0     # Za vizualni blink oklopa pri udarcu
+
     def check_collisions(self):
-        """Provjerava precizan sudar između asteroida i oklopa broda"""
+        """Vraća asteroid s kojim je došlo do sudara, ili None"""
         if not self.player.in_flight_mode:
-            return False
+            return None
 
         hull = self.ship.flight_hull
         if not hull:
-            return False
+            return None
             
         ship_x = self.ship.world_x
         ship_y = self.ship.world_y
@@ -52,8 +57,31 @@ class GameEngine:
                                     pixel_ship_x = ship_x + ship_c
                                     pixel_ship_y = ship_y + ship_r
                                     if pixel_ast_x == pixel_ship_x and pixel_ast_y == pixel_ship_y:
-                                        return True
-        return False
+                                        return ast  # Vraćamo konkretan asteroid koji je udario!
+        return None
+
+    def apply_damage(self, colliding_asteroid, current_time):
+        """Nanošenje štete ovisno o tieru asteroida (Tier 1 = 0 damage)"""
+        if colliding_asteroid:
+            tier = getattr(colliding_asteroid, 'tier', 1)
+            
+            # Tier 1 ne radi nikakvu štetu (samo detekcija sudara)
+            if tier == 1:
+                return
+
+            if current_time - self.last_damage_time >= self.damage_cooldown:
+                self.last_damage_time = current_time
+                self.last_hit_flash = current_time
+                
+                # Šteta raste ovisno o tieru asteroida (npr. Tier 2 = 10, Tier 3 = 15, Tier 4 = 20)
+                damage_amount = tier * 5
+                
+                if hasattr(self.ship, 'rooms') and self.ship.rooms:
+                    for room in self.ship.rooms:
+                        if hasattr(room, 'hp'):
+                            room.hp = max(0, room.hp - damage_amount)
+                elif hasattr(self.ship, 'hp'):
+                    self.ship.hp = max(0, self.ship.hp - damage_amount)
 
     def run(self, get_key_func):
         last_time = time.time()
@@ -78,12 +106,12 @@ class GameEngine:
                 key = get_key_func()
                 can_move = (current_time - self.last_move_time) >= self.move_cooldown
 
-                # --- ZASEBAN SUSTAV ZA ZVJEZDANU PRAŠINU (Vrti se glatko u svakom frejmu, van ticka) ---
+                # --- Dust ---
                 for dust in self.dust_particles:
                     dust.update()
                     time.sleep(0.0002)
 
-                # --- 10Hz TICK LOGIKA U POZADINI (Fizika i asteroidi) ---
+                # --- 10Hz TICK ---
                 while tick_accumulator >= self.tick_interval:
                     tick_accumulator -= self.tick_interval
                     self.tick_count += 1
@@ -91,7 +119,11 @@ class GameEngine:
                     for ast in self.asteroids:
                         ast.update()
 
-                    self.is_colliding = self.check_collisions()
+                    colliding_ast = self.check_collisions()
+                    self.is_colliding = (colliding_ast is not None)
+                    
+                    if self.is_colliding:
+                        self.apply_damage(colliding_ast, current_time)
 
                 if not self.player.in_flight_mode:
                     # --- INTERIOR MODE ---
@@ -109,7 +141,7 @@ class GameEngine:
                         elif key == "e":
                             if self.ship.interior_grid[self.player.r][self.player.c] == "[#]":
                                 self.player.in_flight_mode = True
-                                sys.stdout.write("\nPrebacivanje u flight mode...\n")
+                                sys.stdout.write("\nTransferring to flight mode...\n")
                                 sys.stdout.flush()
                                 time.sleep(0.5)
                             else:
@@ -125,7 +157,7 @@ class GameEngine:
                     screen_buffer.append(interior_screen)
 
                     screen_buffer.append("================================")
-                    screen_buffer.append("Kontrole: W/A/S/D kretanje | E konzola (Flight Mode) | CTRL+C izlaz")
+                    screen_buffer.append("Controles: W/A/S/D move | E interact | CTRL+C exit")
 
                     sys.stdout.write("\n".join(screen_buffer) + "\n")
                     sys.stdout.flush()
@@ -153,12 +185,10 @@ class GameEngine:
 
                     grid = [[" " for _ in range(self.width)] for _ in range(self.height)]
                     
-                    # 1. Crtamo pozadinsku zvjezdanu prašinu
                     for dust in self.dust_particles:
                         if 0 <= dust.y < self.height and 0 <= dust.x < self.width:
                             grid[int(dust.y)][int(dust.x)] = f"{dust.color}{dust.char}"
 
-                    # 2. Crtamo asteroide i čistimo pozadinu (da prašina ne ulazi u prazna mjesta unutar oblika)
                     for ast in self.asteroids:
                         for r_idx, row in enumerate(ast.shape):
                             for c_idx, char in enumerate(row):
@@ -168,19 +198,21 @@ class GameEngine:
                                     if char != " ":
                                         grid[ay][ax] = f"{ast.color}{char}\033[0m"
                                     else:
-                                        # Prazna mjesta unutar ASCII oblika brišu prašinu iza sebe
                                         grid[ay][ax] = " "
 
-                    # 3. Crtamo oklop broda preko svega
+                    # Crveni flash oklopa pri udarcu (samo za tier > 1 ili općenito na sudar)
+                    ship_color = "\033[31m" if (current_time - self.last_hit_flash < 0.3) else "\033[36m"
+
                     for r_idx, row in enumerate(self.ship.flight_hull):
                         for c_idx, char in enumerate(row):
                             if char != " ":
                                 screen_y = self.ship.world_y + r_idx
                                 screen_x = self.ship.world_x + c_idx
                                 if 0 <= screen_y < self.height and 0 <= screen_x < self.width:
-                                    grid[screen_y][screen_x] = f"\033[36m{char}\033[0m"
+                                    grid[screen_y][screen_x] = f"{ship_color}{char}\033[0m"
+                    
 
-                    collision_warning = " [OPREZ: SUDAR!]" if self.is_colliding else ""
+                    collision_warning = " [Colision!]" if self.is_colliding else ""
 
                     screen_buffer = []
                     screen_buffer.append("\033[H\033[J")
@@ -190,9 +222,9 @@ class GameEngine:
                         screen_buffer.append("".join(row))
                         
                     screen_buffer.append(f"------------------------------------------------------------")
-                    screen_buffer.append(f" [POS: X:{self.ship.world_x} Y:{self.ship.world_y}] | [HP: {hp}] | [TEŽINA: {total_weight}t] | [POTISAK: {total_thrust}]")
+                    screen_buffer.append(f" [POS: X:{self.ship.world_x} Y:{self.ship.world_y}] | [HP: {hp}] | [WEIGHT: {total_weight}t] | [THRUST: {total_thrust}]")
                     screen_buffer.append(f"============================================================")
-                    screen_buffer.append(" Kontrole: W/A/S/D letenje | Q povratak u brod | CTRL+C izlaz")
+                    screen_buffer.append(" Controles: W/A/S/D | Q back to ship | CTRL+C exit")
 
                     sys.stdout.write("\n".join(screen_buffer) + "\n")
                     sys.stdout.flush()
@@ -202,6 +234,6 @@ class GameEngine:
         except KeyboardInterrupt:
             print("\nSimulation stoped")
         except Exception as e:
-            print(f"\n[GREŠKA U SIMULACIJI]: {e}")
+            print(f"\n[Error in sim]: {e}")
             traceback.print_exc()
-            input("\nPritisni Enter za izlaz...")
+            input("\nPres Enter to exit...")
