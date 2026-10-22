@@ -16,8 +16,8 @@ ASTEROID_TYPES = {
         "color": Fore.CYAN,  # Metalik cijan/plava
         "shape": [
             " __ ",
-            "/* \\",
-            "\\__/"
+            "(o \\",
+            "\\__)"
         ],
         "drops": {
             "Fe": (5, 20),
@@ -30,10 +30,10 @@ ASTEROID_TYPES = {
         "color": Fore.YELLOW,  # Žućkasta/smećkasta za ugljik
         "shape": [
             "  __  ",
-            " /  \\ ",
-            "/    \\",
-            "\\    /",
-            " \\__/ "
+            " [q \\ ",
+            "/   0\\",
+            "\\o   )",
+            " \\__) "
         ],
         "drops": {
             "Fe": (10, 30),
