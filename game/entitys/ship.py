@@ -2,7 +2,8 @@ import copy
 from game.assets.ship_assets import (
     SQUARE_ROOM, SQUARE_ROOM_HULL,
     ENGINE_ROOM, ENGINE_ROOM_HULL,
-    EMPTY_ROOM, 
+    EMPTY_ROOM,
+    ANGLED_ROOM_RIGHT_UP, ANGLED_ROOM_RIGHT_UP_HULL 
 )
 
 class Ship:
@@ -25,6 +26,9 @@ class Ship:
         elif room_type == "EMPTY":
             interior = copy.deepcopy(EMPTY_ROOM)
             hull = []
+        elif room_type == "ANGLED_ROOM_RIGHT_UP":
+            interior = copy.deepcopy(ANGLED_ROOM_RIGHT_UP)
+            hull = ANGLED_ROOM_RIGHT_UP_HULL
         else:
             interior = copy.deepcopy(SQUARE_ROOM)
             hull = SQUARE_ROOM_HULL

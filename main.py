@@ -42,10 +42,10 @@ def main():
 
     ship = Ship(x=(width//2), y=(height//2))
     
-    ship.add_room("ENGINE_ROOM",interior_offset=(8, 8))
-    ship.add_room("SQUARE_ROOM",interior_offset =(0,0))
-    ship.add_room("SQUARE_ROOM",interior_offset=(0,8))
-    ship.add_room("SQUARE_ROOM",interior_offset=(0,16))
+    ship.add_room("ENGINE_ROOM",interior_offset=(8,0))
+    ship.add_room("SQUARE_ROOM",interior_offset =(8,8))
+    ship.add_room("SQUARE_ROOM",interior_offset=(0,0))
+    ship.add_room("ANGLED_ROOM_RIGHT_UP",interior_offset=(0,8))
 
     spawn_r, spawn_c = ship.get_console_spawn_cords()
     player = Player(room_r=spawn_r, room_c=spawn_c)
